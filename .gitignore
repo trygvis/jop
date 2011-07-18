@@ -1,0 +1,15 @@
+# Generated files
+asm/generated/
+coregen.log
+java/tools/dist/
+modelsim/mem_ram.dat
+modelsim/mem_rom.dat
+vhdl/actelram_initrom.vhd
+vhdl/jtbl.vhd
+vhdl/rom.vhd
+vhdl/xram_block.vhd
+vhdl/xv4ram_block.vhd
+
+# Editor files
+*.swp
+.*.un~
