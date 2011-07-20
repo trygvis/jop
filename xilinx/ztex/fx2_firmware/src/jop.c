@@ -8,6 +8,8 @@
 #include <fx2regs.h>
 // #include <fx2timer.h>
 #include <setupdat.h>
+#include <serial.h>
+#include "ztex.h"
 
 #define SYNCDELAY() SYNCDELAY4;
 
@@ -21,8 +23,8 @@ void init_usb() {
     got_sud=FALSE;
     RENUMERATE_UNCOND();
 
+//    SETCPUFREQ(CLK_12M);
     SETCPUFREQ(CLK_48M);
-    SETCPUFREQ(CLK_12M);
 
     SETIF48MHZ();
 
@@ -64,17 +66,24 @@ void init_port_a() {
 
 void main(void)
 {
-	WORD count;
+char c = 0;
     init_usb();
-	// TODO: init ports
+    // TODO: init ports
     init_port_a();
 //    init_port_b();
+
+    sio0_init(9600);
 
     // Arm the endpoint to tell the host that we're ready to receive
     EP1INBC = 0x80;
     SYNCDELAY();
 
     EA=1;
+
+//    reset_fpga();
+
+    PORTECFG=0x00;      // port E = IO
+    OEE = 0xFF;         // port E[0:7] = out
 
     // loop endlessly
     while(1) {
@@ -83,7 +92,16 @@ void main(void)
             got_sud = FALSE;
         }
 
-		/*
+        IOE = 0xff;
+        IOE = 0x00;
+        putchar(c);
+        c++;
+
+        if(c== 0) {
+            delay(100);
+        }
+
+        /*
         // If EP1 out busy (meaning does not not valid data), twiddle tumbs
         if(EP01STAT & bmBIT1) {
             continue;
@@ -91,7 +109,7 @@ void main(void)
 
         EP1OUTBC=0x00; // Arms EP1 out
         SYNCDELAY();
-		*/
+        */
     }
 }
 
@@ -100,14 +118,17 @@ void main(void)
 // -----------------------------------------------------------------------
 
 BOOL handle_vendorcommand(BYTE cmd) {
-	switch(cmd) {
-		// request
-		case 0x30:				// get fpga state
-		// command
-		case 0x31:				// reset fpga
-		// command
-		case 0x32:				// send fpga configuration data
-	}
+    switch(cmd) {
+        // request
+        case 0x30:				// get fpga state
+            break;
+        // command
+        case 0x31:				// reset fpga
+            break;
+        // command
+        case 0x32:				// send fpga configuration data
+            break;
+    }
     return FALSE;
 }
 

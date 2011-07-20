@@ -24,13 +24,14 @@ endif
 firmwares=src/jop.c
 
 all: target $(patsubst src/%.c,target/%.rel,$(firmwares)) $(patsubst src/%.c,target/%.ihx,$(firmwares))
-src/jop.c:
+src/jop.c: src/ztex.h
+src/ztex.c: src/ztex.h
 
 #
 # Dependencies
 #
 
-target/jop.ihx: target/jop-descriptor.rel target/jop-dscr.rel
+target/jop.ihx: target/jop-descriptor.rel target/jop-dscr.rel target/ztex.rel
 
 #
 # Common targets
