@@ -2,6 +2,8 @@
 asm/generated/
 coregen.log
 java/tools/dist/
+java/target/dist/
+modelsim/mem_main.dat
 modelsim/mem_ram.dat
 modelsim/mem_rom.dat
 vhdl/actelram_initrom.vhd

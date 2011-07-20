@@ -1,0 +1,17 @@
+build/
+
+fx2_firmware/target/
+
+# There are so many files generated and there are different files per ISE
+# version so everything is excluded except those few we really need.
+
+ise_13*/*
+!ise_13*/ise_13.gise
+!ise_13*/ise_13.xise
+
+mig_37*/*
+!mig_37*/README.txt
+!mig_37*/datasheet.txt
+!mig_37*/memc3_infrastructure.patch
+!mig_37*/mig.prj
+!mig_37*/mig_37.xco

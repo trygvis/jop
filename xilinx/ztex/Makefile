@@ -131,3 +131,7 @@ $(DESIGN).bit:	build/$(DESIGN)_r.ncd build/$(DESIGN)_r.twr
 
 flash:
 		sudo $(ZTEX)/FWLoader -c -rf -uf $(DESIGN).bit
+
+# Create a .bin file that can be uploaded directly to the FPGA.
+%.bin: %.bit
+		promgen -w -p bin -u 0 $<
