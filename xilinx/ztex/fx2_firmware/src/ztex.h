@@ -1,10 +1,37 @@
 #ifndef ZTEX_H
 #define ZTEX_H
 
-// Functions to interface to the ZTEX board
-// Board schematics: http://www.ztex.de/downloads/usb-fpga-1.11.pdf
-// Spartan-6 manual:
+#include "fx2types.h"
 
-void reset_fpga();
+struct ztex_descriptor {
+    BYTE size;                      // ZTEX_DESCRIPTOR_SIZE
+    BYTE version;                   // ZTEX_DESCRIPTOR_VERSION
+    BYTE id[4];                     // ZTEXID
+    BYTE product_id[4];             // PRODUCT_ID
+    BYTE fw_version;                // FW_VERSION
+    BYTE interface_version;         // INTERFACE_VERSION
+    BYTE interface_capabilities[6]; // INTERFACE_CAPABILITIES
+    BYTE reserved[12];              // MODULE_RESERVED
+    BYTE serial_number[10];         // SN_STRING
+};
+
+struct ztex_status {
+    BYTE unconfigured;
+    BYTE checksum;
+    DWORD bytes_transferred;
+    BYTE init_b_states;
+    BYTE flash_result;              // this is possibly "flash result"
+    BYTE bit_order;
+};
+
+struct ztex_descriptor* ztex_get_descriptor();
+
+void ztex_get_status(struct ztex_status*);
+
+void ztex_init();
+
+void ztex_reset_fpga();
+
+void ztex_send_data(BYTE *bytes, BYTE count);
 
 #endif

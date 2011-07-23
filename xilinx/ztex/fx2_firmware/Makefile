@@ -24,14 +24,17 @@ endif
 firmwares=src/jop.c
 
 all: target $(patsubst src/%.c,target/%.rel,$(firmwares)) $(patsubst src/%.c,target/%.ihx,$(firmwares))
-src/jop.c: src/ztex.h
-src/ztex.c: src/ztex.h
 
 #
 # Dependencies
 #
 
-target/jop.ihx: target/jop-descriptor.rel target/jop-dscr.rel target/ztex.rel
+# Compile units dependencies
+target/jop.rel: src/ztex.h
+target/ztex.rel: src/ztex.h
+
+# Link unit dependencies
+target/jop.ihx: target/jop-descriptor.rel target/jop-dscr.rel target/ztex.rel target/ztex-descriptor.rel
 
 #
 # Common targets
@@ -42,7 +45,7 @@ clean:
 	@rm -rf target
 
 target:
-	@mkdir target
+	@mkdir -p target
 
 list:
 	cycfx2prog --list

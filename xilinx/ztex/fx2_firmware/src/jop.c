@@ -9,6 +9,7 @@
 // #include <fx2timer.h>
 #include <setupdat.h>
 #include <serial.h>
+#include <stdio.h>
 #include "ztex.h"
 
 #define SYNCDELAY() SYNCDELAY4;
@@ -17,14 +18,17 @@ volatile __bit dosuspend=FALSE;
 volatile __bit got_sud;
 volatile WORD counter;
 
+void init_cpu() {
+//    SETCPUFREQ(CLK_12M);
+    SETCPUFREQ(CLK_48M);
+}
+
 void init_usb() {
+    printf("init_usb()\n");
     REVCTL=0; // not using advanced endpoint controls
 
     got_sud=FALSE;
     RENUMERATE_UNCOND();
-
-//    SETCPUFREQ(CLK_12M);
-    SETCPUFREQ(CLK_48M);
 
     SETIF48MHZ();
 
@@ -59,28 +63,21 @@ void init_usb() {
     SYNCDELAY();
 }
 
-void init_port_a() {
-    PORTACFG=0x00;      // port A = IO
-    OEA = 0x00;         // port A[0:7] = in
-}
-
 void main(void)
 {
-char c = 0;
-    init_usb();
-    // TODO: init ports
-    init_port_a();
-//    init_port_b();
+    init_cpu();
+    sio0_init(57600);
+    printf("Initializing..\n");
 
-    sio0_init(9600);
+    init_usb();
+    ztex_init();
 
     // Arm the endpoint to tell the host that we're ready to receive
     EP1INBC = 0x80;
     SYNCDELAY();
 
+    printf("Initialization complete\n");
     EA=1;
-
-//    reset_fpga();
 
     PORTECFG=0x00;      // port E = IO
     OEE = 0xFF;         // port E[0:7] = out
@@ -94,12 +91,6 @@ char c = 0;
 
         IOE = 0xff;
         IOE = 0x00;
-        putchar(c);
-        c++;
-
-        if(c== 0) {
-            delay(100);
-        }
 
         /*
         // If EP1 out busy (meaning does not not valid data), twiddle tumbs
@@ -117,18 +108,53 @@ char c = 0;
 //
 // -----------------------------------------------------------------------
 
-BOOL handle_vendorcommand(BYTE cmd) {
-    switch(cmd) {
-        // request
-        case 0x30:				// get fpga state
-            break;
-        // command
-        case 0x31:				// reset fpga
-            break;
-        // command
-        case 0x32:				// send fpga configuration data
-            break;
+BOOL handle_vendorcommand(BYTE bRequest) {
+    BYTE bmRequestType = SETUPDAT[0];
+    struct ztex_descriptor* descriptor;
+
+    SUDPTRCTL = 1;
+
+    // get ZTEX descriptor
+    if(bmRequestType == 0xc0 && bRequest == 0x22) {
+        printf(__FILE__ ": get descriptor\n");
+
+        descriptor = ztex_get_descriptor();
+
+        SUDPTRCTL = 0;
+        EP0BCH = 0;
+        EP0BCL = sizeof(struct ztex_descriptor);
+        SUDPTRH = (BYTE)((((unsigned short)descriptor) >> 8) & 0xff);
+        SUDPTRL = (BYTE)(((unsigned short)descriptor) & 0xff);
+        return TRUE;
     }
+    // Get FPGA state
+    else if(bmRequestType == 0xc0 && bRequest == 0x30) {
+        printf(__FILE__ ": get fpga state\n");
+
+        ztex_get_status((struct ztex_status*)EP0BUF);
+
+        EP0BCH = 0;
+        EP0BCL = sizeof(struct ztex_status);
+        return TRUE;
+    }
+    // Reset FPGA
+    else if(bmRequestType == 0x40 && bRequest == 0x31) {
+        printf(__FILE__ ": Resetting FPGA\n");
+        ztex_reset_fpga();
+        return TRUE;
+    }
+    // Upload bitstream chunk
+    /*
+    else if(bmRequestType == 0x40 && bRequest == 0x32) {
+        printf(__FILE__ ": Uploading bitstream, byte count=%d\n", SETUPDAT[6]);
+        // As long as we're dealing with EP0 transfers, only the lower byte
+        // count anyway.
+        ztex_send_data(EP0BUF, SETUPDAT[6]);
+        return TRUE;
+    }
+    */
+
+    printf(__FILE__ ": Unknown vendor command. bmRequestType=0x%02x, bRequest=0x%02x\n", SETUPDAT[0], bRequest);
     return FALSE;
 }
 

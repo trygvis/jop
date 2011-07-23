@@ -28,15 +28,13 @@ string1end:
 _string2:
     .db     string2end-_string2
     .db     DSCR_STRING_TYPE
+    .ascii 'Z'
+    .db     0
     .ascii 'T'
     .db     0
-    .ascii 'h'
+    .ascii 'E'
     .db     0
-    .ascii 'e'
-    .db     0
-    .ascii 'r'
-    .db     0
-    .ascii 'e'
+    .ascii 'X'
     .db     0
 string2end:
 
