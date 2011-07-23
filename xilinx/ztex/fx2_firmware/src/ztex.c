@@ -130,8 +130,8 @@ void ztex_reset_fpga() {
     OEA |= bmINIT_B;
 }
 
-void ztex_send_data(BYTE *bytes, BYTE count) {
-    BYTE i;
+void ztex_send_data(BYTE *bytes, WORD count) {
+    WORD i;
 
     for(i = 0; i < count; i++) {
         IOD = *bytes;

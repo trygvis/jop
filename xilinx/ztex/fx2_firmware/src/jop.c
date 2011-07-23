@@ -15,8 +15,9 @@
 #define SYNCDELAY() SYNCDELAY4;
 
 volatile __bit dosuspend=FALSE;
-volatile __bit got_sud;
-volatile WORD counter;
+volatile __bit got_sud=FALSE;
+
+volatile WORD bitstream_left=FALSE;
 
 void init_cpu() {
 //    SETCPUFREQ(CLK_12M);
@@ -24,10 +25,10 @@ void init_cpu() {
 }
 
 void init_usb() {
-    printf("init_usb()\n");
+    printf(__FILE__ ": init_usb()\n");
+
     REVCTL=0; // not using advanced endpoint controls
 
-    got_sud=FALSE;
     RENUMERATE_UNCOND();
 
     SETIF48MHZ();
@@ -65,18 +66,18 @@ void init_usb() {
 
 void main(void)
 {
+    WORD left;
+
     init_cpu();
+
     sio0_init(57600);
-    printf("Initializing..\n");
+    printf(__FILE__ ": Initializing..\n");
 
     init_usb();
+
     ztex_init();
 
-    // Arm the endpoint to tell the host that we're ready to receive
-    EP1INBC = 0x80;
-    SYNCDELAY();
-
-    printf("Initialization complete\n");
+    printf(__FILE__ ": Initialization complete\n");
     EA=1;
 
     PORTECFG=0x00;      // port E = IO
@@ -89,8 +90,22 @@ void main(void)
             got_sud = FALSE;
         }
 
-        IOE = 0xff;
-        IOE = 0x00;
+        if(!(EP01STAT & bmBIT0) && bitstream_left > 0) {
+//            printf(__FILE__ ": bitstream_left=%d, left=%d\n", bitstream_left, left);
+            left = bitstream_left > sizeof(EP0BUF) ? sizeof(EP0BUF) : bitstream_left;
+            ztex_send_data(EP0BUF, left);
+            bitstream_left -= left;
+
+            EP0BCL = 0;
+        }
+
+//        if(EP01STAT & bmBIT0) {
+//            continue;
+//        }
+
+//        printf(__FILE__ ": EP0 has data\n");
+//        EP0BCL = 0;
+//        SYNCDELAY();
 
         /*
         // If EP1 out busy (meaning does not not valid data), twiddle tumbs
@@ -144,17 +159,15 @@ BOOL handle_vendorcommand(BYTE bRequest) {
         return TRUE;
     }
     // Upload bitstream chunk
-    /*
     else if(bmRequestType == 0x40 && bRequest == 0x32) {
-        printf(__FILE__ ": Uploading bitstream, byte count=%d\n", SETUPDAT[6]);
-        // As long as we're dealing with EP0 transfers, only the lower byte
-        // count anyway.
-        ztex_send_data(EP0BUF, SETUPDAT[6]);
+//        printf(__FILE__ ": Uploading bitstream, byte count=%d\n",  SETUP_LENGTH());
+        bitstream_left = SETUP_LENGTH();
         return TRUE;
     }
-    */
 
-    printf(__FILE__ ": Unknown vendor command. bmRequestType=0x%02x, bRequest=0x%02x\n", SETUPDAT[0], bRequest);
+    printf(__FILE__ ": Unknown vendor command.\n"
+        "  bmRequestType=0x%02x\n"
+        "  bRequest=0x%02x\n", SETUPDAT[0], bRequest);
     return FALSE;
 }
 

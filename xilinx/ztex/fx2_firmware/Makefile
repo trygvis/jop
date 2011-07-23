@@ -63,7 +63,6 @@ target/%.rel: src/%.c
 	@$(CC) $(SDCCFLAGS) -c -o $@ $<
 
 target/%.rel: src/%.asm
-	@echo AS=$(AS)
 	@echo AS $<
 	@$(AS) -logsp $<
 	@mkdir -p target
