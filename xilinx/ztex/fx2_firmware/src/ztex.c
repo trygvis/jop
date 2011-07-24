@@ -68,7 +68,7 @@ void ztex_init() {
     ztex_reset_fpga();
 }
 
-#define dump_bits(b) (b); printf(__FILE__ ": %c%c%c%c %c%c%c%c\n", ((b) & bmBIT7) ? '1' : '0', ((b) & bmBIT6) ? '1' : '0', ((b) & bmBIT5) ? '1' : '0', ((b) & bmBIT4) ? '1' : '0', ((b) & bmBIT3) ? '1' : '0', ((b) & bmBIT2) ? '1' : '0', ((b) & bmBIT1) ? '1' : '0', ((b) & bmBIT0) ? '1' : '0');
+#define dump_bits(b) (b); // printf(__FILE__ ": %c%c%c%c %c%c%c%c\n", ((b) & bmBIT7) ? '1' : '0', ((b) & bmBIT6) ? '1' : '0', ((b) & bmBIT5) ? '1' : '0', ((b) & bmBIT4) ? '1' : '0', ((b) & bmBIT3) ? '1' : '0', ((b) & bmBIT2) ? '1' : '0', ((b) & bmBIT1) ? '1' : '0', ((b) & bmBIT0) ? '1' : '0');
 
 /**
  * The default value of port a when idle. 
@@ -120,23 +120,69 @@ void ztex_reset_fpga() {
     while (!PORT_INIT_B && k<65535)
         k++;
 
-    status.init_b_states = PA0 ? 200 : 100;
-    status.bytes_transferred = 0;
-    status.checksum = 0;
-
-    printf(__FILE__ ": reset complete, k=%d, PA0=%d\n", k, PA0);
+    status.init_b_states = PORT_INIT_B ? 200 : 100;
 
     // Make PORT_INIT_B an output again
     OEA |= bmINIT_B;
+
+    printf(__FILE__ ": reset complete, k=%d, PA0=%d\n", k, PA0);
 }
 
-void ztex_send_data(BYTE *bytes, WORD count) {
-    WORD i;
+void ztex_upload_bitstream(BYTE *bytes, BYTE count) {
+    BYTE b;
+    BYTE sum = 0;
 
-    for(i = 0; i < count; i++) {
-        IOD = *bytes;
+    status.bytes_transferred += count;
+
+//    for(i = 0; i < count; i++) {
+    while(count--) {
+        b = *bytes;
+        IOD = b;
+        sum += b;
+        status.checksum += b;
         bytes++;
         PORT_CCLK = 1;
         PORT_CCLK = 0;
     }
+
+//    status.checksum += sum;
+}
+
+void ztex_finish_bitstream_upload() {
+    WORD k;
+
+    OEA &= ~bmINIT_B;
+    status.init_b_states += PORT_INIT_B ? 20 : 10;
+    OEA |= bmINIT_B;
+
+    k = 65535;
+    while (k) {
+        k--;
+        PORT_CCLK = 1;
+        PORT_CCLK = 0;
+    }
+
+    /*
+    k=0;
+    while (!PORT_INIT_B && k<65535) {
+        k++;
+        PORT_CCLK = 1;
+        PORT_CCLK = 0;
+    }
+    */
+
+//    printf(__FILE__ ": Finishing bitstream upload.\n"
+//    "  checksum=0x%02x, k=%d\n", status.checksum, k);
+
+//    printf(__FILE__ ": Finishing bitstream upload.\n"
+//    "  k=%d\n", k);
+//    printf(__FILE__ ": Finishing bitstream upload.\n k=");
+//    printf("\n");
+
+    OEA &= ~bmINIT_B;
+//    printf(__FILE__ ": configuration complete, k=%d\n", k);
+    status.init_b_states += PORT_INIT_B ? 2 : 1;
+    OEA |= bmINIT_B;
+
+    status.unconfigured = status.init_b_states != 222;
 }

@@ -36,6 +36,14 @@ target/ztex.rel: src/ztex.h
 # Link unit dependencies
 target/jop.ihx: target/jop-descriptor.rel target/jop-dscr.rel target/ztex.rel target/ztex-descriptor.rel
 
+splint:
+	splint \
+		-booltype BOOL \
+		-I$(FX2LIBDIR)/include \
+		-I/usr/share/sdcc/include \
+		-I/usr/share/sdcc/include/mcs51 \
+		$(wildcard src/*.c)
+
 #
 # Common targets
 #

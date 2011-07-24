@@ -32,6 +32,8 @@ void ztex_init();
 
 void ztex_reset_fpga();
 
-void ztex_send_data(BYTE *bytes, WORD count);
+void ztex_upload_bitstream(BYTE *bytes, BYTE count);
+
+void ztex_finish_bitstream_upload();
 
 #endif

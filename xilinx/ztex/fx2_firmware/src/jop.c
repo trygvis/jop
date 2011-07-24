@@ -17,7 +17,9 @@
 volatile __bit dosuspend=FALSE;
 volatile __bit got_sud=FALSE;
 
-volatile WORD bitstream_left=FALSE;
+volatile WORD bitstream_chunk=0;
+volatile WORD bitstream_chunk_left=0;
+volatile __bit last_bitstream_chunk=FALSE;
 
 void init_cpu() {
 //    SETCPUFREQ(CLK_12M);
@@ -39,12 +41,13 @@ void init_usb() {
     ENABLE_USBRESET();
     ENABLE_HISPEED();
 
+    /*
     // Endpoint 1 in
-    EP1INCFG &= ~bmVALID + EPCFG_TYPE_BULK;
+    EP1INCFG &= ~bmVALID;
     SYNCDELAY();
 
     // Endpoint 1 out
-    EP1OUTCFG &= ~bmVALID + EPCFG_TYPE_BULK;
+    EP1OUTCFG &= ~bmVALID;
     SYNCDELAY();
 
     // Endpoint 2
@@ -62,11 +65,12 @@ void init_usb() {
     // Endpoint 8
     EP8CFG &= ~bmVALID;
     SYNCDELAY();
+    */
 }
 
 void main(void)
 {
-    WORD left;
+    BYTE left;
 
     init_cpu();
 
@@ -80,42 +84,33 @@ void main(void)
     printf(__FILE__ ": Initialization complete\n");
     EA=1;
 
-    PORTECFG=0x00;      // port E = IO
-    OEE = 0xFF;         // port E[0:7] = out
-
-    // loop endlessly
     while(1) {
         if (got_sud) {
             handle_setupdata();
             got_sud = FALSE;
         }
 
-        if(!(EP01STAT & bmBIT0) && bitstream_left > 0) {
-//            printf(__FILE__ ": bitstream_left=%d, left=%d\n", bitstream_left, left);
-            left = bitstream_left > sizeof(EP0BUF) ? sizeof(EP0BUF) : bitstream_left;
-            ztex_send_data(EP0BUF, left);
-            bitstream_left -= left;
+        if(!(EP01STAT & bmBIT0) && bitstream_chunk_left > 0) {
+//            printf(__FILE__ ": bitstream_chunk_left=%d, left=%d\n", bitstream_chunk_left, left);
+            left = bitstream_chunk_left > sizeof(EP0BUF) ?
+                   sizeof(EP0BUF) : bitstream_chunk_left;
+            ztex_upload_bitstream(EP0BUF, left);
+            bitstream_chunk_left -= left;
+
+            if(bitstream_chunk_left <= 0 && last_bitstream_chunk) {
+                last_bitstream_chunk = FALSE;
+
+                ztex_finish_bitstream_upload();
+                {
+                BYTE c;
+                ztex_get_status((struct ztex_status*)EP0BUF);
+                c = ((struct ztex_status*)EP0BUF)->checksum;
+                printf("checksum=%d, 0x%02x\n", c, c);
+                }
+            }
 
             EP0BCL = 0;
         }
-
-//        if(EP01STAT & bmBIT0) {
-//            continue;
-//        }
-
-//        printf(__FILE__ ": EP0 has data\n");
-//        EP0BCL = 0;
-//        SYNCDELAY();
-
-        /*
-        // If EP1 out busy (meaning does not not valid data), twiddle tumbs
-        if(EP01STAT & bmBIT1) {
-            continue;
-        }
-
-        EP1OUTBC=0x00; // Arms EP1 out
-        SYNCDELAY();
-        */
     }
 }
 
@@ -148,6 +143,19 @@ BOOL handle_vendorcommand(BYTE bRequest) {
 
         ztex_get_status((struct ztex_status*)EP0BUF);
 
+        /*
+        printf("checksum=%d\n"
+               "init_b_states=%d\n"
+               "bytes_transferred=%d\n",
+               ((struct ztex_status*)EP0BUF)->checksum,
+               ((struct ztex_status*)EP0BUF)->init_b_states,
+               ((struct ztex_status*)EP0BUF)->bytes_transferred);
+       */
+        {
+        BYTE c =  ((struct ztex_status*)EP0BUF)->checksum;
+        printf("checksum=%d, 0x%02x\n", c, c);
+        }
+
         EP0BCH = 0;
         EP0BCL = sizeof(struct ztex_status);
         return TRUE;
@@ -160,8 +168,15 @@ BOOL handle_vendorcommand(BYTE bRequest) {
     }
     // Upload bitstream chunk
     else if(bmRequestType == 0x40 && bRequest == 0x32) {
-//        printf(__FILE__ ": Uploading bitstream, byte count=%d\n",  SETUP_LENGTH());
-        bitstream_left = SETUP_LENGTH();
+        // TODO: Fail the request unless the FPGA is unconfigured
+
+        bitstream_chunk = SETUP_LENGTH();
+        bitstream_chunk_left = bitstream_chunk;
+
+        if(bitstream_chunk != 2048) {
+            last_bitstream_chunk = TRUE;
+        }
+
         return TRUE;
     }
 
