@@ -20,7 +20,7 @@ struct ztex_status {
     BYTE checksum;
     DWORD bytes_transferred;
     BYTE init_b_states;
-    BYTE flash_result;              // this is possibly "flash result"
+    BYTE flash_result;
     BYTE bit_order;
 };
 
@@ -32,7 +32,7 @@ void ztex_init();
 
 void ztex_reset_fpga();
 
-void ztex_upload_bitstream(BYTE *bytes, BYTE count);
+void ztex_upload_bitstream(BYTE *, BYTE);
 
 void ztex_finish_bitstream_upload();
 

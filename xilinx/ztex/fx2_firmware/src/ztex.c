@@ -31,6 +31,9 @@
  * PA7: CSI_B
  *
  * PD => D[0:7]
+ *
+ * The Spartan's DONE signal is wired so that it pulls PROGRAM_B down so is
+ * can be sampled to check the DONE signal.
  */
 
 #define PORT_INIT_B     PA0
@@ -49,15 +52,19 @@
 #define bmM0            bmBIT6
 #define bmCSI_B         bmBIT7
 
-extern struct ztex_descriptor descriptor;
+extern __code struct ztex_descriptor descriptor;
 
-struct ztex_status status;
+static struct ztex_status ztex_status;
+static BYTE sum;
 
 void ztex_init() {
     printf(__FILE__ ": ztex_init()\n");
 
     // Make port A a "normal" IO port
     PORTACFG = 0x00;
+
+    // This "ties" CSI_B and RDWR_B low as allowed from figure 2-8.
+    IOA = bmPROGRAM_B | bmINIT_B | bmM1;
 
     // Configure output signals, 0 = in, 1 = out
     OEA = bmPROGRAM_B | bmCSI_B | bmRDWR_B | bmCCLK | bmM0 | bmM1;
@@ -68,92 +75,81 @@ void ztex_init() {
     ztex_reset_fpga();
 }
 
-#define dump_bits(b) (b); // printf(__FILE__ ": %c%c%c%c %c%c%c%c\n", ((b) & bmBIT7) ? '1' : '0', ((b) & bmBIT6) ? '1' : '0', ((b) & bmBIT5) ? '1' : '0', ((b) & bmBIT4) ? '1' : '0', ((b) & bmBIT3) ? '1' : '0', ((b) & bmBIT2) ? '1' : '0', ((b) & bmBIT1) ? '1' : '0', ((b) & bmBIT0) ? '1' : '0');
-
-/**
- * The default value of port a when idle. 
- * CSI_B  = 0 => enable SelectMAP interface 
- * RDWR_B = 0 => write
- * CCLK is low, the FPGA samples on rising edge
- * M[1:0] = b10 => Slave SelectMAP
- */
-#define default_a (bmPROGRAM_B | bmINIT_B | bmM1)
-
 struct ztex_descriptor* ztex_get_descriptor() {
     return &descriptor;
 }
 
 void ztex_get_status(struct ztex_status* s) {
-    memcpy(s, &status, sizeof(struct ztex_status));
+    // Sample the DONE signal as it'll pull down the PROGRAM_B port if it is
+    // unconfigured.
+    OEA &= ~bmPROGRAM_B;
+    ztex_status.unconfigured = !PORT_PROGRAM_B;
+    OEA |= bmPROGRAM_B;
+
+    memcpy(s, &ztex_status, sizeof(struct ztex_status));
+    printf("sum=0x%02x\n", sum);
+    s->checksum = sum;
 }
 
-/**
- * TODO: Add SYNCDELAY before this function.
- */
 void ztex_reset_fpga() {
     unsigned short k;
 
     printf(__FILE__ ": ztex_reset_fpga()\n");
 
-    memset(&status, 0, sizeof(struct ztex_status));
-    status.unconfigured = 1;
+    memset(&ztex_status, 0, sizeof(struct ztex_status));
+    ztex_status.unconfigured = 1;
 
     // Reset the FPGA by asserting PROGRAM_B while setting M[1:0]
     // The FPGA will sample the mode bits on a rising INIT_B
     //
     // TODO: Rewrite this to use PORT_ lines, it's easier to read
     // With the nice bit instructions of the 8051 there's hardly any need for default_a
-    IOA = dump_bits(default_a);
-    IOA = dump_bits(default_a & ~bmPROGRAM_B);
-    IOA = dump_bits(default_a & ~(bmPROGRAM_B | bmINIT_B));
-    IOA = dump_bits(default_a & ~bmINIT_B);
-    IOA = dump_bits(default_a);
+
+    // This creates the sequence on figure 2-8.
+    // See figure 2-10 for the sequence on loading the data.
+
+    // INIT_B is made an output to reset the fpga.
+    OEA |= bmINIT_B;
+    PORT_PROGRAM_B = 0;
+    PORT_INIT_B = 0;
+    PORT_PROGRAM_B = 1;
+    PORT_INIT_B = 1;
+
+    OEA &= ~bmINIT_B;
 
 //    delay(10);
 
     printf(__FILE__ ": waiting for reset to complete\n");
 
-    // Make PORT_INIT_B an input so it can be sampled
-    OEA &= ~bmINIT_B;
-
     k=0;
     while (!PORT_INIT_B && k<65535)
         k++;
 
-    status.init_b_states = PORT_INIT_B ? 200 : 100;
-
-    // Make PORT_INIT_B an output again
-    OEA |= bmINIT_B;
+    ztex_status.init_b_states = PORT_INIT_B ? 200 : 100;
 
     printf(__FILE__ ": reset complete, k=%d, PA0=%d\n", k, PA0);
 }
 
 void ztex_upload_bitstream(BYTE *bytes, BYTE count) {
     BYTE b;
-    BYTE sum = 0;
 
-    status.bytes_transferred += count;
+    ztex_status.bytes_transferred += count;
 
-//    for(i = 0; i < count; i++) {
     while(count--) {
         b = *bytes;
         IOD = b;
         sum += b;
-        status.checksum += b;
+        ztex_status.checksum += b;
         bytes++;
         PORT_CCLK = 1;
         PORT_CCLK = 0;
     }
-
-//    status.checksum += sum;
 }
 
 void ztex_finish_bitstream_upload() {
     WORD k;
 
-    OEA &= ~bmINIT_B;
-    status.init_b_states += PORT_INIT_B ? 20 : 10;
-    OEA |= bmINIT_B;
+    ztex_status.init_b_states += PORT_INIT_B ? 20 : 10;
 
     k = 65535;
     while (k) {
@@ -172,17 +168,12 @@ void ztex_finish_bitstream_upload() {
     */
 
 //    printf(__FILE__ ": Finishing bitstream upload.\n"
-//    "  checksum=0x%02x, k=%d\n", status.checksum, k);
+//    "  checksum=0x%02x, k=%d\n", ztex_status.checksum, k);
 
 //    printf(__FILE__ ": Finishing bitstream upload.\n"
 //    "  k=%d\n", k);
 //    printf(__FILE__ ": Finishing bitstream upload.\n k=");
 //    printf("\n");
 
-    OEA &= ~bmINIT_B;
-//    printf(__FILE__ ": configuration complete, k=%d\n", k);
-    status.init_b_states += PORT_INIT_B ? 2 : 1;
-    OEA |= bmINIT_B;
-
-    status.unconfigured = status.init_b_states != 222;
+    ztex_status.init_b_states += PORT_INIT_B ? 2 : 1;
 }

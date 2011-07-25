@@ -5,8 +5,6 @@
 #include <fx2extra.h>
 #include <fx2ints.h>
 #include <fx2macros.h>
-#include <fx2regs.h>
-// #include <fx2timer.h>
 #include <setupdat.h>
 #include <serial.h>
 #include <stdio.h>
@@ -22,7 +20,6 @@ volatile WORD bitstream_chunk_left=0;
 volatile __bit last_bitstream_chunk=FALSE;
 
 void init_cpu() {
-//    SETCPUFREQ(CLK_12M);
     SETCPUFREQ(CLK_48M);
 }
 
@@ -40,38 +37,41 @@ void init_usb() {
     ENABLE_SUDAV();
     ENABLE_USBRESET();
     ENABLE_HISPEED();
+//    ENABLE_EP0OUT();
+}
 
-    /*
-    // Endpoint 1 in
-    EP1INCFG &= ~bmVALID;
-    SYNCDELAY();
+WORD count = 0;
+void upload_chunk() {
+    BYTE left = bitstream_chunk_left > sizeof(EP0BUF) ?
+           sizeof(EP0BUF) : bitstream_chunk_left;
 
-    // Endpoint 1 out
-    EP1OUTCFG &= ~bmVALID;
-    SYNCDELAY();
+    putchar('2');
+//    printf(__FILE__ ": bitstream_chunk_left=%d, left=%d\n", bitstream_chunk_left, left);
+    if(bitstream_chunk_left <= 0) {
+        return;
+    }
+    ztex_upload_bitstream(EP0BUF, left);
+    bitstream_chunk_left -= left;
+    count++;
 
-    // Endpoint 2
-    EP2CFG &= ~bmVALID;
-    SYNCDELAY();
+    if(bitstream_chunk_left <= 0) {
+        if(last_bitstream_chunk) {
+            last_bitstream_chunk = FALSE;
 
-    // Endpoint 4
-    EP4CFG &= ~bmVALID;
-    SYNCDELAY();
+            printf("count=%d\n", count);
+            ztex_finish_bitstream_upload();
+        }
 
-    // Endpoint 6
-    EP6CFG &= ~bmVALID;
-    SYNCDELAY();
+        putchar('3');
+        EP0CS |= bmHSNAK;
+    }
 
-    // Endpoint 8
-    EP8CFG &= ~bmVALID;
+    EP0BCL = 0;
     SYNCDELAY();
-    */
 }
 
 void main(void)
 {
-    BYTE left;
-
     init_cpu();
 
     sio0_init(57600);
@@ -79,10 +79,14 @@ void main(void)
 
     init_usb();
 
-    ztex_init();
-
     printf(__FILE__ ": Initialization complete\n");
+
+    // ARM EP0
+    EP0BCL = 0;
+
     EA=1;
+
+    ztex_init();
 
     while(1) {
         if (got_sud) {
@@ -91,26 +95,12 @@ void main(void)
         }
 
         if(!(EP01STAT & bmBIT0) && bitstream_chunk_left > 0) {
-//            printf(__FILE__ ": bitstream_chunk_left=%d, left=%d\n", bitstream_chunk_left, left);
-            left = bitstream_chunk_left > sizeof(EP0BUF) ?
-                   sizeof(EP0BUF) : bitstream_chunk_left;
-            ztex_upload_bitstream(EP0BUF, left);
-            bitstream_chunk_left -= left;
-
-            if(bitstream_chunk_left <= 0 && last_bitstream_chunk) {
-                last_bitstream_chunk = FALSE;
-
-                ztex_finish_bitstream_upload();
-                {
-                BYTE c;
-                ztex_get_status((struct ztex_status*)EP0BUF);
-                c = ((struct ztex_status*)EP0BUF)->checksum;
-                printf("checksum=%d, 0x%02x\n", c, c);
-                }
+            __critical {
+            upload_chunk();
             }
-
-            EP0BCL = 0;
         }
+        /*
+        */
     }
 }
 
@@ -130,11 +120,12 @@ BOOL handle_vendorcommand(BYTE bRequest) {
 
         descriptor = ztex_get_descriptor();
 
-        SUDPTRCTL = 0;
         EP0BCH = 0;
         EP0BCL = sizeof(struct ztex_descriptor);
+        SUDPTRCTL = 0;
         SUDPTRH = (BYTE)((((unsigned short)descriptor) >> 8) & 0xff);
         SUDPTRL = (BYTE)(((unsigned short)descriptor) & 0xff);
+        EP0CS |= bmHSNAK;
         return TRUE;
     }
     // Get FPGA state
@@ -143,31 +134,24 @@ BOOL handle_vendorcommand(BYTE bRequest) {
 
         ztex_get_status((struct ztex_status*)EP0BUF);
 
-        /*
-        printf("checksum=%d\n"
-               "init_b_states=%d\n"
-               "bytes_transferred=%d\n",
-               ((struct ztex_status*)EP0BUF)->checksum,
-               ((struct ztex_status*)EP0BUF)->init_b_states,
-               ((struct ztex_status*)EP0BUF)->bytes_transferred);
-       */
-        {
-        BYTE c =  ((struct ztex_status*)EP0BUF)->checksum;
-        printf("checksum=%d, 0x%02x\n", c, c);
-        }
-
         EP0BCH = 0;
         EP0BCL = sizeof(struct ztex_status);
+        EP0CS |= bmHSNAK;
         return TRUE;
     }
     // Reset FPGA
     else if(bmRequestType == 0x40 && bRequest == 0x31) {
         printf(__FILE__ ": Resetting FPGA\n");
         ztex_reset_fpga();
+        last_bitstream_chunk = FALSE;
+        count = 0;
+        EP0CS |= bmHSNAK;
         return TRUE;
     }
     // Upload bitstream chunk
     else if(bmRequestType == 0x40 && bRequest == 0x32) {
+        putchar('1');
+//        printf(__FILE__ ": uploading chunk: size=%d\n", SETUP_LENGTH());
         // TODO: Fail the request unless the FPGA is unconfigured
 
         bitstream_chunk = SETUP_LENGTH();
@@ -177,6 +161,9 @@ BOOL handle_vendorcommand(BYTE bRequest) {
             last_bitstream_chunk = TRUE;
         }
 
+        // ARM EP0, but to not clear HSNAK. HSNAK is cleared when all the data
+        // packets are sent.
+        EP0BCL = 0;
         return TRUE;
     }
 
@@ -227,20 +214,11 @@ void handle_reset_ep(BYTE ep) {
 }
 
 // -----------------------------------------------------------------------
-// Timer
-// -----------------------------------------------------------------------
-
-// void timer0_isr() __interrupt TF0_ISR {
-//     fx2_timer0_isr();
-// }
-
-// -----------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------
 
-// TODO: Add sut_isr
-
 void sudav_isr() __interrupt SUDAV_ISR {
+//    printf("sudav_isr\n");
     got_sud=TRUE;
     CLEAR_SUDAV();
 }
@@ -262,4 +240,12 @@ void resume_isr() __interrupt RESUME_ISR {
 void suspend_isr() __interrupt SUSPEND_ISR {
     dosuspend=TRUE;
     CLEAR_SUSPEND();
+}
+
+void ep0out_isr() __interrupt EP0OUT_ISR {
+    /*
+    __critical {
+        upload_chunk();
+    }
+    */
 }

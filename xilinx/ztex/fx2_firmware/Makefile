@@ -80,4 +80,4 @@ target/%.rel: src/%.asm
 
 target/%.ihx: target/%.rel
 	@echo LD $@
-	@$(CC) $(SDCCFLAGS) -Wl"-b INT2JT=0x1A00" -Wl"-b DSCR_AREA=0x3e00" -o $@ $^ fx2.lib -L$(FX2LIBDIR)/lib
+	@$(CC) $(SDCCFLAGS) -Wl"-b INT2JT=0x3D00" -Wl"-b DSCR_AREA=0x3e00" -o $@ $^ fx2.lib -L$(FX2LIBDIR)/lib
