@@ -38,6 +38,9 @@ void init_usb() {
     ENABLE_USBRESET();
     ENABLE_HISPEED();
 //    ENABLE_EP0OUT();
+
+    // ARM EP0
+    EP0BCL = 0;
 }
 
 WORD count = 0;
@@ -45,8 +48,6 @@ void upload_chunk() {
     BYTE left = bitstream_chunk_left > sizeof(EP0BUF) ?
            sizeof(EP0BUF) : bitstream_chunk_left;
 
-    putchar('2');
-//    printf(__FILE__ ": bitstream_chunk_left=%d, left=%d\n", bitstream_chunk_left, left);
     if(bitstream_chunk_left <= 0) {
         return;
     }
@@ -62,7 +63,6 @@ void upload_chunk() {
             ztex_finish_bitstream_upload();
         }
 
-        putchar('3');
         EP0CS |= bmHSNAK;
     }
 
@@ -81,9 +81,6 @@ void main(void)
 
     printf(__FILE__ ": Initialization complete\n");
 
-    // ARM EP0
-    EP0BCL = 0;
-
     EA=1;
 
     ztex_init();
@@ -96,11 +93,9 @@ void main(void)
 
         if(!(EP01STAT & bmBIT0) && bitstream_chunk_left > 0) {
             __critical {
-            upload_chunk();
+                upload_chunk();
             }
         }
-        /*
-        */
     }
 }
 
@@ -150,8 +145,6 @@ BOOL handle_vendorcommand(BYTE bRequest) {
     }
     // Upload bitstream chunk
     else if(bmRequestType == 0x40 && bRequest == 0x32) {
-        putchar('1');
-//        printf(__FILE__ ": uploading chunk: size=%d\n", SETUP_LENGTH());
         // TODO: Fail the request unless the FPGA is unconfigured
 
         bitstream_chunk = SETUP_LENGTH();
@@ -161,8 +154,6 @@ BOOL handle_vendorcommand(BYTE bRequest) {
             last_bitstream_chunk = TRUE;
         }
 
-        // ARM EP0, but to not clear HSNAK. HSNAK is cleared when all the data
-        // packets are sent.
         EP0BCL = 0;
         return TRUE;
     }
@@ -218,7 +209,6 @@ void handle_reset_ep(BYTE ep) {
 // -----------------------------------------------------------------------
 
 void sudav_isr() __interrupt SUDAV_ISR {
-//    printf("sudav_isr\n");
     got_sud=TRUE;
     CLEAR_SUDAV();
 }
@@ -242,10 +232,10 @@ void suspend_isr() __interrupt SUSPEND_ISR {
     CLEAR_SUSPEND();
 }
 
+/*
 void ep0out_isr() __interrupt EP0OUT_ISR {
-    /*
     __critical {
         upload_chunk();
     }
-    */
 }
+*/

@@ -102,9 +102,6 @@ void ztex_reset_fpga() {
     // Reset the FPGA by asserting PROGRAM_B while setting M[1:0]
     // The FPGA will sample the mode bits on a rising INIT_B
     //
-    // TODO: Rewrite this to use PORT_ lines, it's easier to read
-    // With the nice bit instructions of the 8051 there's hardly any need for default_a
-
     // This creates the sequence on figure 2-8.
     // See figure 2-10 for the sequence on loading the data.
 
@@ -116,8 +113,6 @@ void ztex_reset_fpga() {
     PORT_INIT_B = 1;
 
     OEA &= ~bmINIT_B;
-
-//    delay(10);
 
     printf(__FILE__ ": waiting for reset to complete\n");
 
@@ -157,23 +152,6 @@ void ztex_finish_bitstream_upload() {
         PORT_CCLK = 1;
         PORT_CCLK = 0;
     }
-
-    /*
-    k=0;
-    while (!PORT_INIT_B && k<65535) {
-        k++;
-        PORT_CCLK = 1;
-        PORT_CCLK = 0;
-    }
-    */
-
-//    printf(__FILE__ ": Finishing bitstream upload.\n"
-//    "  checksum=0x%02x, k=%d\n", ztex_status.checksum, k);
-
-//    printf(__FILE__ ": Finishing bitstream upload.\n"
-//    "  k=%d\n", k);
-//    printf(__FILE__ ": Finishing bitstream upload.\n k=");
-//    printf("\n");
 
     ztex_status.init_b_states += PORT_INIT_B ? 2 : 1;
 }
