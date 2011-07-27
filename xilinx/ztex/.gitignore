@@ -9,6 +9,10 @@ ise_13*/*
 !ise_13*/ise_13.gise
 !ise_13*/ise_13.xise
 
+ise_13_lx16_aeroquad/* 
+!ise_13_lx16_aeroquad/ise_13_lx16_aeroquad.gise
+!ise_13_lx16_aeroquad/ise_13_lx16_aeroquad.xise
+
 mig_37*/*
 !mig_37*/README.txt
 !mig_37*/datasheet.txt
