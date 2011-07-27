@@ -16,3 +16,4 @@ vhdl/xv4ram_block.vhd
 *.swp
 .*.un~
 java/target/src/common/com/jopdesign/sys/Config.java
+.vimrc

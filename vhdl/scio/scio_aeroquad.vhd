@@ -1,7 +1,3 @@
---
---
--- This file is a part of JOP, the Java Optimized Processor
---
 -- Copyright (C) 2011, Trygve Laugstøl <trygvis@inamo.no>
 --
 -- This code is licensed under the Apache Software License.
@@ -23,6 +19,7 @@ generic (
     pwm_channel_count       : integer;
     pwm_bits_per_channel    : integer
 );
+
 port (
     clk         : in std_logic;
 	reset       : in std_logic;
@@ -83,32 +80,32 @@ architecture rtl of scio is
     signal sel, sel_reg         : integer range 0 to 2**DECODE_BITS-1;
 
 begin
-
-    assert SLAVE_CNT <= 2**DECODE_BITS report "Wrong constant in scio";
-
-    sel <= to_integer(unsigned(sc_io_out.address(SLAVE_ADDR_BITS+DECODE_BITS-1 downto SLAVE_ADDR_BITS)));
-
-    sc_io_in.rd_data <= sc_dout(sel_reg);
-    sc_io_in.rdy_cnt <= sc_rdy_cnt(sel_reg);
-
-    gsl: for i in 0 to SLAVE_CNT-1 generate
-        sc_rd(i) <= sc_io_out.rd when i=sel else '0';
-        sc_wr(i) <= sc_io_out.wr when i=sel else '0';
-    end generate;
-
-    --
-    --	Register read and write mux selector
-    --
-    process(clk, reset)
-    begin
-        if (reset='1') then
-            sel_reg <= 0;
-        elsif rising_edge(clk) then
-            if sc_io_out.rd='1' or sc_io_out.wr='1' then
-                sel_reg <= sel;
-            end if;
-        end if;
-    end process;
+--
+--    assert SLAVE_CNT <= 2**DECODE_BITS report "Wrong constant in scio";
+--
+--    sel <= to_integer(unsigned(sc_io_out.address(SLAVE_ADDR_BITS+DECODE_BITS-1 downto SLAVE_ADDR_BITS)));
+--
+--    sc_io_in.rd_data <= sc_dout(sel_reg);
+--    sc_io_in.rdy_cnt <= sc_rdy_cnt(sel_reg);
+--
+--    gsl: for i in 0 to SLAVE_CNT-1 generate
+--        sc_rd(i) <= sc_io_out.rd when i=sel else '0';
+--        sc_wr(i) <= sc_io_out.wr when i=sel else '0';
+--    end generate;
+--
+--    --
+--    --	Register read and write mux selector
+--    --
+--    process(clk, reset)
+--    begin
+--        if (reset='1') then
+--            sel_reg <= 0;
+--        elsif rising_edge(clk) then
+--            if sc_io_out.rd='1' or sc_io_out.wr='1' then
+--                sel_reg <= sel;
+--            end if;
+--        end if;
+--    end process;
 
     -- Device #0
     sys: entity work.sc_sys generic map (

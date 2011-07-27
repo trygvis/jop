@@ -1,5 +1,6 @@
--- Copyright Trygve Laugstøl <trygvis@inamo.no>
--- Licensed under the Apache Software License
+-- Copyright (C) 2011, Trygve Laugstøl <trygvis@inamo.no>
+--
+-- This code is licensed under the Apache Software License.
 --
 --		address map:
 --
