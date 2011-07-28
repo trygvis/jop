@@ -2,7 +2,6 @@
 --
 -- This code is licensed under the Apache Software License.
 --
--- TODO: Use sc_decoder
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -10,6 +9,7 @@ use ieee.numeric_std.all;
 
 use work.jop_types.all;
 use work.sc_pack.all;
+use work.sc_decoder_pack.all;
 use work.jop_config.all;
 
 entity scio is
@@ -19,7 +19,6 @@ generic (
     pwm_channel_count       : integer;
     pwm_bits_per_channel    : integer
 );
-
 port (
     clk         : in std_logic;
 	reset       : in std_logic;
@@ -63,6 +62,19 @@ end scio;
 
 architecture rtl of scio is
 
+    constant slave_count        : integer := 3;
+    constant lower_addr_bits    : integer := 4;
+
+--    -- SimpCon <=> CPU bus
+--    signal sc_in            : sc_in_type;
+--    signal sc_out           : sc_out_type;
+--
+--    -- SimpCon <=> slave busses
+--    signal sc_slave_in      : sc_slave_in_array(0 to slave_count - 1);
+--    signal sc_slave_out     : sc_slave_out_array(0 to slave_count - 1);
+--
+--    signal lower_address    : std_logic_vector(lower_addr_bits - 1 downto 0);
+
     constant SLAVE_CNT          : integer := 3;
     constant DECODE_BITS        : integer := 2;
     -- number of bits that can be used inside the slave
@@ -80,36 +92,51 @@ architecture rtl of scio is
     signal sel, sel_reg         : integer range 0 to 2**DECODE_BITS-1;
 
 begin
---
---    assert SLAVE_CNT <= 2**DECODE_BITS report "Wrong constant in scio";
---
---    sel <= to_integer(unsigned(sc_io_out.address(SLAVE_ADDR_BITS+DECODE_BITS-1 downto SLAVE_ADDR_BITS)));
---
---    sc_io_in.rd_data <= sc_dout(sel_reg);
---    sc_io_in.rdy_cnt <= sc_rdy_cnt(sel_reg);
---
---    gsl: for i in 0 to SLAVE_CNT-1 generate
---        sc_rd(i) <= sc_io_out.rd when i=sel else '0';
---        sc_wr(i) <= sc_io_out.wr when i=sel else '0';
---    end generate;
---
---    --
---    --	Register read and write mux selector
---    --
---    process(clk, reset)
---    begin
---        if (reset='1') then
---            sel_reg <= 0;
---        elsif rising_edge(clk) then
---            if sc_io_out.rd='1' or sc_io_out.wr='1' then
---                sel_reg <= sel;
---            end if;
---        end if;
---    end process;
+
+    assert SLAVE_CNT <= 2**DECODE_BITS report "Wrong constant in scio";
+
+    sel <= to_integer(unsigned(sc_io_out.address(SLAVE_ADDR_BITS+DECODE_BITS-1 downto SLAVE_ADDR_BITS)));
+
+    sc_io_in.rd_data <= sc_dout(sel_reg);
+    sc_io_in.rdy_cnt <= sc_rdy_cnt(sel_reg);
+
+    gsl: for i in 0 to SLAVE_CNT-1 generate
+        sc_rd(i) <= sc_io_out.rd when i=sel else '0';
+        sc_wr(i) <= sc_io_out.wr when i=sel else '0';
+    end generate;
+
+    --
+    --	Register read and write mux selector
+    --
+    process(clk, reset)
+    begin
+        if (reset='1') then
+            sel_reg <= 0;
+        elsif rising_edge(clk) then
+            if sc_io_out.rd='1' or sc_io_out.wr='1' then
+                sel_reg <= sel;
+            end if;
+        end if;
+    end process;
+
+--    sc_decoder: entity work.sc_decoder
+--    generic map (
+--        lower_addr_bits => lower_addr_bits,
+--        slave_count     => slave_count
+--    )
+--    port map(
+--        clk             => clk,
+--        reset           => reset,
+--        sc_in           => sc_in,
+--        sc_out          => sc_out,
+--        sc_slave_in     => sc_slave_in,
+--        sc_slave_out    => sc_slave_out,
+--        lower_address   => lower_address
+--    );
 
     -- Device #0
     sys: entity work.sc_sys generic map (
-        addr_bits => SLAVE_ADDR_BITS,
+        addr_bits => lower_addr_bits,
         clk_freq => clk_freq,
         cpu_id => cpu_id,
         cpu_cnt => cpu_cnt
@@ -117,6 +144,13 @@ begin
     port map(
         clk => clk,
         reset => reset,
+
+--        address => lower_address,
+--        wr_data => sc_io_out.wr_data,
+--        rd => sc_slave_in(0).rd,
+--        wr => sc_slave_in(0).wr,
+--        rd_data => sc_slave_out(0).rd_data,
+--        rdy_cnt => sc_slave_out(0).rdy_cnt,
 
         address => sc_io_out.address(SLAVE_ADDR_BITS-1 downto 0),
         wr_data => sc_io_out.wr_data,
@@ -137,7 +171,7 @@ begin
 
     -- Device #1
     uart0: entity work.sc_uart generic map (
-        addr_bits => SLAVE_ADDR_BITS,
+        addr_bits => lower_addr_bits,
         clk_freq => clk_freq,
         baud_rate => 115200,
         txf_depth => 2,
@@ -148,6 +182,13 @@ begin
     port map(
         clk => clk,
         reset => reset,
+
+--        address => lower_address,
+--        wr_data => sc_io_out.wr_data,
+--        rd => sc_slave_in(1).rd,
+--        wr => sc_slave_in(1).wr,
+--        rd_data => sc_slave_out(1).rd_data,
+--        rdy_cnt => sc_slave_out(1).rdy_cnt,
 
         address => sc_io_out.address(SLAVE_ADDR_BITS-1 downto 0),
         wr_data => sc_io_out.wr_data,
@@ -164,7 +205,7 @@ begin
 
     -- Device #2
     pwm: entity work.sc_pwm generic map (
-        addr_bits => SLAVE_ADDR_BITS,
+        addr_bits => lower_addr_bits,
         clk_freq => clk_freq,
         channel_count => pwm_channel_count,
         bits_per_channel => pwm_bits_per_channel
@@ -173,7 +214,14 @@ begin
         clk => clk,
         reset => reset,
 
-        address => sc_io_out.address(SLAVE_ADDR_BITS-1 downto 0),
+--        address => lower_address,
+--        wr_data => sc_io_out.wr_data,
+--        rd => sc_slave_in(2).rd,
+--        wr => sc_slave_in(2).wr,
+--        rd_data => sc_slave_out(2).rd_data,
+--        rdy_cnt => sc_slave_out(2).rdy_cnt,
+
+        address => sc_io_out.address(lower_addr_bits-1 downto 0),
         wr_data => sc_io_out.wr_data,
         rd => sc_rd(2),
         wr => sc_wr(2),

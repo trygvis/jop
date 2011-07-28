@@ -2,10 +2,10 @@
 --
 -- This code is licensed under the Apache Software License.
 --
--- TODO: Use sc_decoder
 
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
 use work.sc_pack.all;
 use work.sc_decoder_pack.all;
@@ -16,11 +16,11 @@ end sc_pwm_tb;
 architecture behavior of sc_pwm_tb is 
 
     constant lower_addr_bits    : integer := 4;
+    constant slave_count        : integer := 3;
+
     constant clk_freq           : integer := 93000000;
     constant channel_count      : integer := 10;
     constant bits_per_channel   : integer := 4;
-
-    constant slave_count : integer := 5;
 
     constant clk_period : time := 10 ns;
 
@@ -42,38 +42,38 @@ architecture behavior of sc_pwm_tb is
 begin
 
     uut: entity work.sc_pwm
-        generic map (
-            addr_bits           => lower_addr_bits,
-            clk_freq            => clk_freq,
-            channel_count       => channel_count,
-            bits_per_channel    => bits_per_channel
-            )
-        port map (
-            clk => clk,
-            reset => reset,
-            address => lower_address,
-            wr_data => sc_out.wr_data,
-            rd => sc_slave_in(1).rd,
-            wr => sc_slave_in(1).wr,
-            rd_data => sc_slave_out(1).rd_data,
-            rdy_cnt => sc_slave_out(1).rdy_cnt,
-            outputs => outputs
-        );
+    generic map (
+        addr_bits           => lower_addr_bits,
+        clk_freq            => clk_freq,
+        channel_count       => channel_count,
+        bits_per_channel    => bits_per_channel
+    )
+    port map (
+        clk     => clk,
+        reset   => reset,
+        address => lower_address,
+        wr_data => sc_out.wr_data,
+        rd      => sc_slave_in(1).rd,
+        wr      => sc_slave_in(1).wr,
+        rd_data => sc_slave_out(1).rd_data,
+        rdy_cnt => sc_slave_out(1).rdy_cnt,
+        outputs => outputs
+    );
 
     decoder: entity work.sc_decoder
-        generic map (
-            lower_addr_bits => lower_addr_bits,
-            slave_count     => slave_count
-            )
-        port map(
-            clk             => clk,
-            reset           => reset,
-            sc_in           => sc_in,
-            sc_out          => sc_out,
-            sc_slave_in     => sc_slave_in,
-            sc_slave_out    => sc_slave_out,
-            lower_address   => lower_address
-            );
+    generic map (
+        lower_addr_bits => lower_addr_bits,
+        slave_count     => slave_count
+    )
+    port map(
+        clk             => clk,
+        reset           => reset,
+        sc_in           => sc_in,
+        sc_out          => sc_out,
+        sc_slave_in     => sc_slave_in,
+        sc_slave_out    => sc_slave_out,
+        lower_address   => lower_address
+    );
 
     clk_p : process
     begin
@@ -83,7 +83,6 @@ begin
 
     stimulus: process
     begin
-
         sc_out.address <= (others => 'X');
         sc_out.wr_data <= (others => 'X');
         sc_out.rd <= '0';
@@ -95,11 +94,10 @@ begin
 		wait until rising_edge(clk);
 
         -- 16 selects the slave, 4 the register in the slave
-        sc_write(clk, 16 + 4, 10, sc_out, sc_in);
+        sc_write(clk, std_logic_vector(to_signed(-111, 23)), std_logic_vector(to_signed(22, 32)), sc_out, sc_in);
         sc_write(clk, 16 + 2, 0, sc_out, sc_in);
         sc_write(clk, 16 + 1, 15, sc_out, sc_in);
 
         wait;
     end process;
-
 end;
