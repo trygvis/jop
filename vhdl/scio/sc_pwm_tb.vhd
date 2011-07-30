@@ -16,13 +16,13 @@ end sc_pwm_tb;
 architecture behavior of sc_pwm_tb is 
 
     constant lower_addr_bits    : integer := 4;
-    constant slave_count        : integer := 3;
+    constant slave_count        : integer := 4;
 
     constant clk_freq           : integer := 93000000;
     constant channel_count      : integer := 10;
-    constant bits_per_channel   : integer := 4;
+    constant bits_per_channel   : integer := 16;
 
-    constant clk_period : time := 10 ns;
+    constant clk_period : time := 10.75 ns; -- 93MHz
 
     signal clk      : std_logic := '0';
     signal reset    : std_logic := '1';
@@ -53,10 +53,10 @@ begin
         reset   => reset,
         address => lower_address,
         wr_data => sc_out.wr_data,
-        rd      => sc_slave_in(1).rd,
-        wr      => sc_slave_in(1).wr,
-        rd_data => sc_slave_out(1).rd_data,
-        rdy_cnt => sc_slave_out(1).rdy_cnt,
+        rd      => sc_slave_in(3).rd,
+        wr      => sc_slave_in(3).wr,
+        rd_data => sc_slave_out(3).rd_data,
+        rdy_cnt => sc_slave_out(3).rdy_cnt,
         outputs => outputs
     );
 
@@ -82,6 +82,7 @@ begin
     end process;
 
     stimulus: process
+        variable data: std_logic_vector(31 downto 0);
     begin
         sc_out.address <= (others => 'X');
         sc_out.wr_data <= (others => 'X');
@@ -92,11 +93,13 @@ begin
         reset <= '0';
 
 		wait until rising_edge(clk);
-
-        -- 16 selects the slave, 4 the register in the slave
-        sc_write(clk, std_logic_vector(to_signed(-111, 23)), std_logic_vector(to_signed(22, 32)), sc_out, sc_in);
-        sc_write(clk, 16 + 2, 0, sc_out, sc_in);
-        sc_write(clk, 16 + 1, 15, sc_out, sc_in);
+        sc_write(clk, std_logic_vector(to_signed(-80, 23)), std_logic_vector(to_signed(2200, 32)), sc_out, sc_in);
+		wait until rising_edge(clk);
+		wait until rising_edge(clk);
+		wait until rising_edge(clk);
+		wait until rising_edge(clk);
+		wait until rising_edge(clk);
+        sc_read(clk, std_logic_vector(to_signed(-80, 23)), data, sc_out, sc_in);
 
         wait;
     end process;

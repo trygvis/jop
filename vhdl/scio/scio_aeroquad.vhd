@@ -62,9 +62,9 @@ end scio;
 
 architecture rtl of scio is
 
-    constant slave_count        : integer := 3;
-    constant lower_addr_bits    : integer := 4;
-
+--    constant slave_count        : integer := 4;
+--    constant lower_addr_bits    : integer := 4;
+--
 --    -- SimpCon <=> CPU bus
 --    signal sc_in            : sc_in_type;
 --    signal sc_out           : sc_out_type;
@@ -75,7 +75,7 @@ architecture rtl of scio is
 --
 --    signal lower_address    : std_logic_vector(lower_addr_bits - 1 downto 0);
 
-    constant SLAVE_CNT          : integer := 3;
+    constant SLAVE_CNT          : integer := 4;
     constant DECODE_BITS        : integer := 2;
     -- number of bits that can be used inside the slave
     constant SLAVE_ADDR_BITS    : integer := 4;
@@ -136,7 +136,8 @@ begin
 
     -- Device #0
     sys: entity work.sc_sys generic map (
-        addr_bits => lower_addr_bits,
+--        addr_bits => lower_addr_bits,
+        addr_bits => SLAVE_ADDR_BITS,
         clk_freq => clk_freq,
         cpu_id => cpu_id,
         cpu_cnt => cpu_cnt
@@ -171,7 +172,8 @@ begin
 
     -- Device #1
     uart0: entity work.sc_uart generic map (
-        addr_bits => lower_addr_bits,
+--        addr_bits => lower_addr_bits,
+        addr_bits => SLAVE_ADDR_BITS,
         clk_freq => clk_freq,
         baud_rate => 115200,
         txf_depth => 2,
@@ -203,9 +205,17 @@ begin
         nrts => open
     );
 
-    -- Device #2
+    -- Device #2 - USB device (not used with the aeroquad)
+--    sc_slave_out(2).rd_data <= (others => '0');
+--    sc_slave_out(2).rdy_cnt <= (others => '0');
+
+    sc_dout(2) <= (others => '0');
+    sc_rdy_cnt(2) <= (others => '0');
+
+    -- Device #3
     pwm: entity work.sc_pwm generic map (
-        addr_bits => lower_addr_bits,
+--        addr_bits => lower_addr_bits,
+        addr_bits => SLAVE_ADDR_BITS,
         clk_freq => clk_freq,
         channel_count => pwm_channel_count,
         bits_per_channel => pwm_bits_per_channel
@@ -216,17 +226,17 @@ begin
 
 --        address => lower_address,
 --        wr_data => sc_io_out.wr_data,
---        rd => sc_slave_in(2).rd,
---        wr => sc_slave_in(2).wr,
---        rd_data => sc_slave_out(2).rd_data,
---        rdy_cnt => sc_slave_out(2).rdy_cnt,
+--        rd => sc_slave_in(3).rd,
+--        wr => sc_slave_in(3).wr,
+--        rd_data => sc_slave_out(3).rd_data,
+--        rdy_cnt => sc_slave_out(3).rdy_cnt,
 
-        address => sc_io_out.address(lower_addr_bits-1 downto 0),
+        address => sc_io_out.address(SLAVE_ADDR_BITS-1 downto 0),
         wr_data => sc_io_out.wr_data,
-        rd => sc_rd(2),
-        wr => sc_wr(2),
-        rd_data => sc_dout(2),
-        rdy_cnt => sc_rdy_cnt(2),
+        rd => sc_rd(3),
+        wr => sc_wr(3),
+        rd_data => sc_dout(3),
+        rdy_cnt => sc_rdy_cnt(3),
 
         outputs => pwm_outputs
     );

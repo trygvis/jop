@@ -4,7 +4,8 @@ NET "clk" LOC = "K14" | IOSTANDARD = LVCMOS33;
 NET "clk" TNM_NET = "clk";
 TIMESPEC "ts_clkin" = PERIOD "clk" 20.833333 ns HIGH 50 %;
 
-NET "rst" LOC = "R3" | IOSTANDARD = LVTTL | PULLDOWN;
+NET "rst_from_fx"       LOC = "R3" | IOSTANDARD = LVTTL | PULLDOWN;
+NET "rst_from_button"   LOC = "C4" | IOSTANDARD = "LVCMOS33"; # 107
 
 ##### JOP
 

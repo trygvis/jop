@@ -834,3 +834,7 @@ testapp: tools
 		-cp $(TARGET)/dist/lib/classes.zip -o $(TARGET)/xxx $(MAIN_CLASS)
 	java $(DEBUG_JOPIZER) $(TOOLS_CP) -Dmgci=false com.jopdesign.build.JOPizer \
 		-cp $(TARGET)/xxx -o $(TARGET)/dist/bin/$(JOPBIN) $(MAIN_CLASS)
+
+# Aeroquad goals
+aeroquad:
+	make japp -e P1=aeroquad P2=app P3=Main

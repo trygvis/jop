@@ -47,7 +47,8 @@ generic (
 
 port (
     clk             : in std_logic;
-    rst             : in std_logic;
+    rst_from_fx     : in std_logic;
+    rst_from_button : in std_logic;
 
     -- JOP serial interface
 
@@ -147,6 +148,7 @@ end component;
     signal clk_int			: std_logic;
     signal rst0_int			: std_logic;
     signal rst_int			: std_logic;
+    signal rst				: std_logic;
     signal clk_mem			: std_logic;
 
     -- DCM
@@ -188,6 +190,7 @@ end component;
     signal wd_out			: std_logic;
 
 begin
+    rst <= rst_from_fx or (not rst_from_button);
     rst0_int <= rst or (not dcm0_locked) or dcm0_clk_status(2);
     rst_int <= rst0_int or (not mig_calib_done);
 

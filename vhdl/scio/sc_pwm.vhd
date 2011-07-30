@@ -10,6 +10,7 @@
 --			N	PWM channel #N setting
 --
 -- TOOD: Use sc_decoder_in/sc_decoder_out for SimpCon signals
+-- TODO: Either use one counter per channel or wait until the channel starts over to load the terminal value
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -20,7 +21,7 @@ use work.sc_pack.all;
 entity sc_pwm is
     generic (
         addr_bits           : integer;
-        clk_freq            : integer;
+        clk_freq            : integer; -- in Hertz
         channel_count       : integer;
         bits_per_channel    : integer
         );
@@ -44,7 +45,7 @@ end;
 
 architecture rtl of sc_pwm is
 
-    subtype counter_t is std_logic_vector(bits_per_channel-1 downto 0);
+    subtype counter_t is unsigned(bits_per_channel-1 downto 0);
     type counter_array is array(0 to channel_count-1) of counter_t;
 
     signal counter          : counter_t;
@@ -53,12 +54,33 @@ architecture rtl of sc_pwm is
     signal terminal_values  : counter_array;
     signal next_outputs     : std_logic_vector(terminal_values'range);
 
+    constant pwm_clk_divisor : integer := clk_freq / 1000000;
+    constant pwm_clk_divisor_bits : integer := 8;
+    signal tick_reg: unsigned(pwm_clk_divisor_bits - 1 downto 0) := (others => '0');
+    signal tick_next: unsigned(pwm_clk_divisor_bits - 1 downto 0);
+    signal tick      : std_logic;
+
 begin
 
-    rdy_cnt <= "00";	-- No wait states, always ready on one clock
-    rd_data <= (others => '0');
+    -- Tick generator
+    assert clk_freq >= 1000000 report "clk_freq has to be at least 1MHz";
 
-    next_counter <= std_logic_vector(unsigned(counter) + 1);
+    tick_next <= (others => '0') when tick_reg=(pwm_clk_divisor - 1) else tick_reg + 1;
+    tick <= '1' when tick_reg=(pwm_clk_divisor - 1) else '0';
+
+    tick_p: process(clk, reset, tick_next)
+    begin
+        if reset = '1' then
+            tick_reg <= (others => '0');
+        elsif rising_edge(clk) then
+            tick_reg <= tick_next;
+        end if;
+    end process;
+
+    rdy_cnt <= "00";	-- No wait states, always ready on one clock
+--    rd_data <= std_logic_vector(terminal_values(to_integer(unsigned(address)))) when rd='1'
+--                else (others => '0');
+    rd_data <= (others => '0');
 
     t: for i in terminal_values'range generate
         next_outputs(i) <= '0' when counter = (counter'range => '0') else
@@ -68,21 +90,24 @@ begin
         process(clk, reset)
         begin
             if (reset='1') then
-                terminal_values(i) <= (others => '0');
+                -- TODO: Set to (others => '0') once everything work
+                terminal_values(i) <= to_unsigned(7, bits_per_channel);
             elsif rising_edge(clk) then
                 if wr='1' and to_integer(unsigned(address)) = i then
-                    terminal_values(i) <= wr_data(bits_per_channel-1 downto 0);
+                    terminal_values(i) <= unsigned(wr_data(bits_per_channel-1 downto 0));
                 end if;
             end if;
         end process;
     end generate;
 
-    process(clk, reset)
+    next_counter <= counter + 1;
+
+    process(tick, reset)
     begin
         if (reset='1') then
             counter <= (others => '0');
             outputs <= (others => '0');
-        elsif rising_edge(clk) then
+        elsif rising_edge(tick) then
             counter <= next_counter;
             outputs <= next_outputs;
         end if;
