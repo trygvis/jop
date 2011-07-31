@@ -2,15 +2,23 @@
 --
 -- This code is licensed under the Apache Software License.
 --
+-- A N-channel PWM signal generator.
+--
+-- Each channel has a terminal value where the output signal changes from '0' to '1'.
+-- The internal clock is a 1MHz tick.
+--
 --        address map:
 --
---          0   PWM channel #0 setting
---          1   PWM channel #1 setting
+--          0   PWM channel #0 terminal value
+--          1   PWM channel #1 terminal value
 --              ...
---          N   PWM channel #N setting
+--          N   PWM channel #N terminal value
 --
+-- 
 -- TOOD: Use sc_decoder_in/sc_decoder_out for SimpCon signals
 -- TODO: Either use one counter per channel or wait until the channel starts over to load the terminal value
+-- TODO: Add enable signals per channel
+-- TODO: Add prescaler per channel so longer signals can be generated.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -64,6 +72,45 @@ architecture rtl of sc_pwm is
 
 begin
 
+    rdy_cnt <= "00";    -- No wait states, always ready on one clock
+    rd_data <= (others => '0');
+
+    -- If this is to be implemented address needs to be registered
+--    rd_data <= std_logic_vector(terminal_values(to_integer(unsigned(address)))) when rd='1'
+--                else (others => '0');
+
+    -------------------------------------------------------
+    -- PWM generator
+
+    pwm_channel: for i in terminal_values'range generate
+        next_outputs(i) <= '0' when counter > terminal_values(i) else '1';
+
+        process(clk, reset)
+        begin
+            if (reset='1') then
+                terminal_values(i) <= (others => '0');
+            elsif rising_edge(clk) then
+                if wr='1' and to_integer(unsigned(address)) = i then
+                    terminal_values(i) <= unsigned(wr_data(bits_per_channel-1 downto 0));
+                end if;
+            end if;
+        end process;
+    end generate;
+
+    next_counter <= counter + 1;
+
+    state: process(tick, reset)
+    begin
+        if (reset='1') then
+            counter <= (others => '0');
+            outputs <= (others => '0');
+        elsif rising_edge(tick) then
+            counter <= next_counter;
+            outputs <= next_outputs;
+        end if;
+    end process;
+
+    -------------------------------------------------------
     -- Tick generator
     assert clk_freq >= 1000000 report "clk_freq has to be at least 1MHz";
 
@@ -79,39 +126,4 @@ begin
         end if;
     end process;
 
-    rdy_cnt <= "00";    -- No wait states, always ready on one clock
---    rd_data <= std_logic_vector(terminal_values(to_integer(unsigned(address)))) when rd='1'
---                else (others => '0');
-    rd_data <= (others => '0');
-
-    t: for i in terminal_values'range generate
-        next_outputs(i) <= '0' when counter = (counter'range => '0') else
-                           '1' when counter = terminal_values(i) else
-                           next_outputs(i);
-
-        process(clk, reset)
-        begin
-            if (reset='1') then
-                -- TODO: Set to (others => '0') once everything work
-                terminal_values(i) <= to_unsigned(7, bits_per_channel);
-            elsif rising_edge(clk) then
-                if wr='1' and to_integer(unsigned(address)) = i then
-                    terminal_values(i) <= unsigned(wr_data(bits_per_channel-1 downto 0));
-                end if;
-            end if;
-        end process;
-    end generate;
-
-    next_counter <= counter + 1;
-
-    process(tick, reset)
-    begin
-        if (reset='1') then
-            counter <= (others => '0');
-            outputs <= (others => '0');
-        elsif rising_edge(tick) then
-            counter <= next_counter;
-            outputs <= next_outputs;
-        end if;
-    end process;
 end;

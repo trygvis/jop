@@ -42,7 +42,7 @@ generic (
     spm_width   : integer := 0;     -- size of scratchpad RAM (in number of address bits for 32-bit words)
 
     pwm_channel_count       : integer := 10;
-    pwm_bits_per_channel    : integer := 16
+    pwm_bits_per_channel    : integer := 8
 );
 
 port (

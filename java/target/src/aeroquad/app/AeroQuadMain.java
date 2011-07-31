@@ -4,7 +4,7 @@ import joprt.RtThread;
 import com.jopdesign.io.*;
 import com.jopdesign.sys.*;
 
-public class Main {
+public class AeroQuadMain {
     public static void main(String[] args) {
         System.out.println("Aeroquad starting...");
 
@@ -13,7 +13,7 @@ public class Main {
 //        new T("RtThread 5-300", 5, 300);
 //        new T("RtThread 4-400", 4, 400);
 
-//        PwmController pwm = AeroQuadIOFactory.getAeroQuadIOFactory().getPwmController();
+        PwmController pwm = AeroQuadIOFactory.getAeroQuadIOFactory().getPwmController();
 
         RtThread.startMission();
 
@@ -22,15 +22,13 @@ public class Main {
         int value = 0;
 		for (;;) {
             RtThread.sleepMs(100);
-            sp.write('a');
-            /*
             System.out.println("pwm.channel0=" + pwm.channel0);
             System.out.println("pwm.channel1=" + pwm.channel1);
             System.out.println("PWM: channel0=" + value);
-            Native.wr(value, Const.IO_BASE+0x31);
-            pwm.set(0, value);
-            value += 100;
-            */
+            Native.wr(value, Const.IO_BASE+0x32);
+            pwm.channel0 = value;
+//            pwm.set(0, value);
+            value += 10;
 		}
     }
 

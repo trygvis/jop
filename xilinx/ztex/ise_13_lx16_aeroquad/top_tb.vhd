@@ -21,7 +21,6 @@ architecture behavior of top_tb is
 
     signal clk : std_logic := '0';
     signal rst : std_logic := '1';
-    signal uart0_rx : std_logic := '0';
 
     signal sc_mem_out       : sc_out_type;
     signal sc_mem_in        : sc_in_type;
@@ -31,6 +30,7 @@ architecture behavior of top_tb is
     signal irq_out          : irq_ack_type;
     signal exc_req          : exception_type;
 
+    signal uart0_rx : std_logic := '1';
     signal uart0_tx : std_logic;
     signal pwm : std_logic_vector(9 downto 0);
 
