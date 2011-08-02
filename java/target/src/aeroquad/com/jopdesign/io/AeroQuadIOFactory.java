@@ -6,17 +6,25 @@ import com.jopdesign.sys.Native;
 
 public class AeroQuadIOFactory extends IOFactory {
 
-    private PwmController pwm;
+    public final PwmChannel pwm0;
+    public final PwmChannel pwm1;
 
     // Handles should be the first static fields!
-    private static int PWM_PTR;
-    private static int PWM_MTAB;
+    private static int PWM0_PTR;
+    private static int PWM0_MTAB;
+
+    private static int PWM1_PTR;
+    private static int PWM1_MTAB;
 
     AeroQuadIOFactory() {
-        pwm = (PwmController) makeHWObject(new PwmController(), Const.IO_BASE+0x30, 0);
+        pwm1 = (PwmChannel) makeHWObject(new PwmChannel(), Const.IO_BASE+0x31, 0);
+        pwm0 = (PwmChannel) makeHWObject(new PwmChannel(), Const.IO_BASE+0x30, 1);
 
-        System.out.println("PWM_PTR=" + PWM_PTR);
-        System.out.println("PWM_MTAB=" + PWM_MTAB);
+        System.out.println("PWM0_PTR=" + PWM0_PTR);
+        System.out.println("PWM0_MTAB=" + PWM0_MTAB);
+
+        System.out.println("PWM1_PTR=" + PWM1_PTR);
+        System.out.println("PWM1_MTAB=" + PWM1_MTAB);
     };
 
     // that has to be overridden by each sub class to get
@@ -26,13 +34,5 @@ public class AeroQuadIOFactory extends IOFactory {
         return JVMHelp.makeHWObject(o, address, idx, cp);
     }
 
-    static AeroQuadIOFactory single = new AeroQuadIOFactory();
-
-    public static AeroQuadIOFactory getAeroQuadIOFactory() {		
-        return single;
-    }
-
-    public PwmController getPwmController() {
-        return pwm;
-    }
+    public static final AeroQuadIOFactory instance = new AeroQuadIOFactory();
 }

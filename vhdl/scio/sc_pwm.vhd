@@ -19,6 +19,8 @@
 -- TODO: Either use one counter per channel or wait until the channel starts over to load the terminal value
 -- TODO: Add enable signals per channel
 -- TODO: Add prescaler per channel so longer signals can be generated.
+-- TODO: Consider adding a set of "meta registers" that contains the current configuration of the module
+--       Include channel width and channel count.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -27,29 +29,29 @@ use work.jop_types.all;
 use work.sc_pack.all;
 
 entity sc_pwm is
-    generic (
-        addr_bits           : integer;
-        clk_freq            : integer; -- in Hertz
-        channel_count       : integer;
-        bits_per_channel    : integer
-        );
-    port (
-        clk     : in std_logic;
-        reset   : in std_logic;
+generic (
+    addr_bits           : integer;
+    clk_freq            : integer; -- in Hertz
+    channel_count       : integer;
+    bits_per_channel    : integer
+);
+port (
+    clk     : in std_logic;
+    reset   : in std_logic;
 
-        -- SimpCon interface
+    -- SimpCon interface
 
-        address : in std_logic_vector(addr_bits-1 downto 0);
-        wr_data : in std_logic_vector(31 downto 0);
-        rd      : in std_logic;
-        wr      : in std_logic;
-        rd_data : out std_logic_vector(31 downto 0);
-        rdy_cnt : out unsigned(1 downto 0);
+    address : in std_logic_vector(addr_bits-1 downto 0);
+    wr_data : in std_logic_vector(31 downto 0);
+    rd      : in std_logic;
+    wr      : in std_logic;
+    rd_data : out std_logic_vector(31 downto 0);
+    rdy_cnt : out unsigned(1 downto 0);
 
-        --
+    --
 
-        outputs : out std_logic_vector(0 to channel_count-1)
-        );
+    outputs : out std_logic_vector(0 to channel_count-1)
+);
 end;
 
 architecture rtl of sc_pwm is
