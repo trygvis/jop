@@ -488,10 +488,10 @@ ser4:
 			wait
 			wait
 
-//****
+// ****
 // could be changed to load mp from ram and not from the first word!!!
 //	cleaner
-//****
+// ****
 			ldm	heap
 			nop
 			bnz	cnt_not_0
@@ -1521,7 +1521,7 @@ mon_no_ena:	nop		nxt
 
 
 
-//****************
+// ****************
 
 // special byte codes for native functions
 
