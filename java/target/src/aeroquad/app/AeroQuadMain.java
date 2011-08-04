@@ -13,7 +13,8 @@ public class AeroQuadMain {
 //        new T("RtThread 5-300", 5, 300);
 //        new T("RtThread 4-400", 4, 400);
 
-        PwmController pwm = AeroQuadIOFactory.getAeroQuadIOFactory().getPwmController();
+        PwmChannel pwm0 = AeroQuadIOFactory.instance.pwm0;
+        PwmChannel pwm1 = AeroQuadIOFactory.instance.pwm1;
 
         RtThread.startMission();
 
@@ -22,12 +23,9 @@ public class AeroQuadMain {
         int value = 0;
 		for (;;) {
             RtThread.sleepMs(100);
-            System.out.println("pwm.channel0=" + pwm.channel0);
-            System.out.println("pwm.channel1=" + pwm.channel1);
-            System.out.println("PWM: channel0=" + value);
-            Native.wr(value, Const.IO_BASE+0x32);
-            pwm.channel0 = value;
-//            pwm.set(0, value);
+            System.out.println("pwm0.value=" + pwm0.get());
+            pwm0.set(value);
+            pwm1.set(256 - value);
             value += 10;
 		}
     }

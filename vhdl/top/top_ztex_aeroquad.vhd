@@ -56,7 +56,7 @@ port (
     uart0_rx        : in std_logic;
 
     -- PWM output
-    pwm             : out std_logic_vector(pwm_channel_count-1 downto 0);
+    pwm             : out std_logic_vector(0 to pwm_channel_count-1);
 
     -- DDR-SDRAM
 
